@@ -1,0 +1,1 @@
+DEVICE = 'cpu'  #'cpu' or 'cuda' for using gpu
