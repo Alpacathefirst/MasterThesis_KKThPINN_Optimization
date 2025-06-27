@@ -8,7 +8,7 @@ import copy
 from constants import *
 
 device = DEVICE
-torch.set_default_dtype(torch.float32)
+torch.set_default_dtype(torch.float64)
 
 
 def run_training(args, data):
@@ -148,6 +148,26 @@ def checkpoint(model, val_loss, min_loss, args, epoch):
         checkpoint = {'model': model, 'state_dict': model.state_dict()}
         torch.save(checkpoint, f'./models/{args.dataset_type}/{args.model}/{args.val_ratio}/{args.model_id}_{args.val_ratio}_{args.run}.pth')
 
+        # Prepare export path
+        onnx_path = f'./models/{args.dataset_type}/{args.model}/{args.val_ratio}/{args.model_id}_{args.val_ratio}_{args.run}.onnx'
+
+        # Ensure model is in eval mode
+        model.eval()
+
+        # Create dummy input
+        dummy_input = torch.randn(1, args.input_dim, dtype=torch.float64).to(DEVICE)
+
+        # Export to ONNX
+        torch.onnx.export(
+            model,
+            dummy_input,
+            onnx_path,
+            input_names=["input"],
+            output_names=["output"],
+            opset_version=13,
+            do_constant_folding=True,
+        )
+
 
 def create_report(scores, args):
     args_dict = args_to_dict(args)
@@ -259,12 +279,9 @@ def save_dict(dictionary, args):
 
 
 def load_weights(model, model_id, args):
-    print('load weights')
     PATH = f'./models/{args.dataset_type}/{args.model}/{args.val_ratio}/{model_id}_{args.val_ratio}_{args.run}.pth'
     checkpoint = torch.load(PATH, map_location=device)
     model.load_state_dict(checkpoint['state_dict'])
-    for name, param in model.named_parameters():
-        print(name, param.device)
     return model
 
 

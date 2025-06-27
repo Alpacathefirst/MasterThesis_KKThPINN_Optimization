@@ -2,10 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Reload data after code execution reset
-train_losses = np.load("data/learning_curves/plant/NN/0.2/MODELID_train_losses_run0.npy")
-val_losses = np.load("data/learning_curves/plant/NN/0.2/MODELID_val_losses_run0.npy")
-train_violations = np.load("data/learning_curves/plant/NN/0.2/MODELID_train_violations_run0.npy")
-val_violations = np.load("data/learning_curves/plant/NN/0.2/MODELID_val_violations_run0.npy")
+train_losses = np.load("data/learning_curves/flash/KKThPINN/0.2/MODELID_train_losses_run0.npy")
+val_losses = np.load("data/learning_curves/flash/KKThPINN/0.2/MODELID_val_losses_run0.npy")
+train_violations = np.load("data/learning_curves/flash/KKThPINN/0.2/MODELID_train_violations_run0.npy")
+val_violations = np.load("data/learning_curves/flash/KKThPINN/0.2/MODELID_val_violations_run0.npy")
+
+# train_losses = np.load("data/learning_curves/flash/ECNN/0.2/MODELID_train_losses_run0.npy")
+# val_losses = np.load("data/learning_curves/flash/ECNN/0.2/MODELID_val_losses_run0.npy")
+# train_violations = np.load("data/learning_curves/flash/ECNN/0.2/MODELID_train_violations_run0.npy")
+# val_violations = np.load("data/learning_curves/flash/ECNN/0.2/MODELID_val_violations_run0.npy")
 
 # Plot losses
 plt.figure()

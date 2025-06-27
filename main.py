@@ -12,12 +12,12 @@ def add_arguments():
 
     parser.add_argument('--model', type=str, default='KKThPINN', help='NN, PINN, KKThPINN')
     parser.add_argument('--model_id', type=str)
-    parser.add_argument('--input_dim', type=int, default=4,
-                        help='3 for cstr, 4 for plant, 5 for distillation')
+    parser.add_argument('--input_dim', type=int, default=6,
+                        help='6 for Flash')
     parser.add_argument('--hidden_dim', type=int, default=32)
     parser.add_argument('--hidden_num', type=int, default=2)
-    parser.add_argument('--z0_dim', type=int, default=5,
-                        help='3 for cstr, 5 for plant, 10 for distillation')
+    parser.add_argument('--z0_dim', type=int, default=13,
+                        help='13 for Flash')
 
     parser.add_argument('--optimizer', type=str, default='adam')
     parser.add_argument('--epochs', type=int, default=1000)
@@ -28,9 +28,9 @@ def add_arguments():
     parser.add_argument("--eta", default=0.8, type=float)
     parser.add_argument("--sigma", default=2, type=float)
     parser.add_argument("--mu_safe", default=1e+9, type=float)
-    parser.add_argument("--dtype", default=32, type=int)
+    parser.add_argument("--dtype", default=64, type=int)
 
-    parser.add_argument('--dataset_type', type=str, help='choose from cstr, plant, distillation')
+    parser.add_argument('--dataset_type', type=str, help='choose from cstr, plant, distillation, flash')
     parser.add_argument('--dataset_path', type=str)
     parser.add_argument('--val_ratio', type=float, default=0.2)
     parser.add_argument('--job', type=str, help='choose from train, experiment')
@@ -103,10 +103,11 @@ if __name__ == '__main__':
     sys.argv = [
         sys.argv[0],
         '--model_id', 'MODELID',
-        '--dataset_type', 'plant',
-        '--dataset_path', 'benchmark_plant.csv',
-        '--job', 'experiment',
-        '--epochs', '200',
+        '--model', 'KKThPINN',
+        '--dataset_type', 'flash',
+        '--dataset_path', 'data_generation\data_files\VLE_H_dataset',
+        '--job', 'train',   # use experiment to run all models for a comparative evaluation, use train to train a specific model
+        '--epochs', '2000',
         '--runs', '1'
     ]
     args = add_arguments()

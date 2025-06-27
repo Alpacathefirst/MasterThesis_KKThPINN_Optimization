@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch.utils import data
 from models import NN, NNOPT, ECNN
 from constants import *
+import joblib
 
 device = DEVICE
 
@@ -22,6 +23,9 @@ def LoadData(args):
     elif args.dataset_type == 'distillation':
         dataset_arr, scaler = load_data(args.dataset_path)
         Data_class = Data_distillation
+    elif args.dataset_type == 'flash':
+        dataset_arr, scaler = load_data(args.dataset_path)
+        Data_class = DataFlash
     else:
         raise ValueError('Dataset not supported!')
 
@@ -47,6 +51,9 @@ def LoadData(args):
     elif args.dataset_type == 'distillation':
         B_dep = B[:, :2]
         B_indep = B[:, 2:]
+    elif args.dataset_type == 'flash':
+        B_dep = B[:, [0, 1, 2, 6, 10]]  # CO2(g), H2O(g), N2(g) HCO3-, Na+
+        B_indep = B[:, [3, 4, 5, 7, 8, 9, 11, 12]]
     else:
         raise ValueError('Dataset not supported!')
 
@@ -114,6 +121,8 @@ def load_data(dataset_path):
     dataset = np.array(pd.read_csv(dataset_path).values)
     scaler = MaxAbsScaler()
     scaler.fit(dataset)
+    # Save to file
+    joblib.dump(scaler, r'C:\Users\caspe\PycharmProjects\KKThPINN_Optimization\models\flash\scalers\VLE_H_dataset')
     dataset = scaler.transform(dataset)
     return dataset, scaler
 
@@ -253,15 +262,31 @@ class Data_distillation(data.Dataset):
 class DataFlash(data.Dataset):
     def __init__(self, dataset):
         self.dataset_tensor = torch.from_numpy(dataset)
-        self.X = self.dataset_tensor[:, :5]
-        self.Y = self.dataset_tensor[:, 5:]
+        self.X = self.dataset_tensor[:, :6]
+        self.Y = self.dataset_tensor[:, 6:]
         self.train_set, self.val_set, self.test_set = self.split_data(0.2)  # initial val_ratio -> 0.2
 
-        self.A = torch.tensor([[0, 0, 1, 0, 0],
-                                [0, 0, 0, 0, 1]])  # (2, 5)
-        self.B = torch.tensor([[-1, 0, 0, 0, 0, 0, -1, -1, 0, 0],
-                                [0, -1, 0, 0, 0, 0, 0, 0, -1, -1]])  # (2, 10)
-        self.b = torch.tensor([0, 0])  # (2, )
+        # inputs: ['T', 'P', 'CO2(g)', 'N2(g)', 'H2O(aq)', 'NaOH(aq)']
+        self.A = torch.tensor([  # TODO: ADD 0, 0 for T and P
+            [0, 0, 1, 0, 0, 0],  # Carbon
+            [0, 0, 0, 0, 2, 1],  # Hydrogen
+            [0, 0, 2, 0, 1, 1],  # Oxygen
+            # [0, 0, 0, 0, 0, 1],  # Sodium
+            [0, 0, 0, 2, 0, 0],  # Nitrogen
+            [0, 0, 0, 0, 0, 0],  # Charge
+        ], dtype=torch.float64)
+
+        # outputs: ['CO2(g)', 'H2O(g)', 'N2(g)', 'CO2(aq)', 'H2O(aq)', 'N2(aq)', 'HCO3-', 'CO3-2', 'OH-', 'H+', 'Na+', 'NaOH(aq)', 'enthalpy']
+        self.B = torch.tensor([
+            [-1, 0, 0, -1, 0, 0, -1, -1, 0, 0, 0, 0, 0],  # Carbon
+            [0, -2, 0, 0, -2, 0, -1, 0, -1, -1, 0, -1, 0],  # Hydrogen
+            [-2, -1, 0, -2, -1, 0, -3, -3, -1, 0, 0, -1, 0],  # Oxygen
+            # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0],  # Sodium
+            [0, 0, -2, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0],  # Nitrogen
+            [0, 0, 0, 0, 0, 0, -1, -2, -1, 1, 1, 0, 0],  # Charge
+        ], dtype=torch.float64)
+
+        self.b = torch.tensor([0, 0, 0, 0, 0])
 
         self.constrained_indexes = list(set([index for index in torch.nonzero(self.B)[:, -1].tolist()]))
         self.unconstrained_indexes = [item for item in range(self.B.shape[1]) if item not in self.constrained_indexes]
