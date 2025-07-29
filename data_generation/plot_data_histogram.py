@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 import math
 
 # Load the log-scaled data
-df = pd.read_csv("data_files/VLE_H_dataset")
+df = pd.read_csv("data_files/L_H_dataset")
 # df = pd.read_csv(r"C:\Users\caspe\PycharmProjects\NN_optimization\data_preprocessing\scaled_data\VLE_H_dataset_scaled")
 
 # Define column names
 NN_INPUTS = ['T', 'P', 'CO2(g)', 'N2(g)', 'H2O(aq)', 'NaOH(aq)']
-NN_OUTPUTS = ['CO2(g)', 'H2O(g)', 'N2(g)', 'CO2(aq)', 'H2O(aq)', 'N2(aq)', 'HCO3-', 'CO3-2', 'OH-', 'H+', 'Na+', 'NaOH(aq)', 'enthalpy']
+NN_OUTPUTS = ['CO2(g).1', 'H2O(g)', 'N2(g).1', 'CO2(aq)', 'H2O(aq)', 'N2(aq)', 'HCO3-', 'CO3-2', 'OH-', 'H+', 'Na+', 'NaOH(aq).1', 'enthalpy']
 
 # Print min/max values
 print("Input Ranges:")

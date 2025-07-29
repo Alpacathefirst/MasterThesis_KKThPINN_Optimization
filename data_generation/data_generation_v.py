@@ -7,12 +7,13 @@ FILENAME = f'V_H_dataset'
 # H2O will be calculated as 1-z_i
 # N2(g) will be calculated as N2_value*x_CO2
 NN_INPUTS = ['T', 'P', 'CO2(g)', 'N2(g)', 'NaOH(aq)']
+NN_ALL_INPUTS = ['T', 'P', 'CO2(g)', 'N2(g)', 'H2O(aq)', 'NaOH(aq)']
 # The specie inputs are converted to element inputs if this is set True
 ELEMENTS = False
 # input ranges
 INPUT_RANGES = {'T': [363, 473], 'P': [1, 100], 'CO2(g)': [0.4, 0.97], 'N2(g)': [0, 0.0005], 'NaOH(aq)': [0, 1e-16]}
 # Select NN outputs, Species[mol/mol]
-NN_OUTPUTS = ['H2O(g)', 'N2(g)', 'CO2(aq)', 'N2(aq)', 'HCO3-', 'CO3-2', 'OH-', 'Na+', 'NaOH(aq)', 'enthalpy', 'vapor fraction']
+NN_OUTPUTS = ['CO2(g)', 'H2O(g)', 'N2(g)', 'CO2(aq)', 'H2O(aq)', 'N2(aq)', 'HCO3-', 'CO3-2', 'OH-', 'H+', 'Na+', 'NaOH(aq)', 'enthalpy']
 OUTPUT_MAX = {'H2O(g)': 0.6, 'N2(g)': 0.002, 'CO2(aq)': 1, 'N2(aq)': 1, 'HCO3-': 1, 'CO3-2': 1,
               'OH-': 1, 'Na+': 1, 'NaOH(aq)': 1}
 # Number of data points
@@ -40,8 +41,8 @@ GAS_MODEL = rkt.ActivityModelRedlichKwong(custom_bip_suprcrt)
 AQUEOUS_MODEL = rkt.ActivityModelPitzer()
 
 # create a
-data_generator = DataGenerator(filename=FILENAME, inputs=NN_INPUTS, outputs=NN_OUTPUTS,
-                               inputs_are_elements=ELEMENTS, db=DATABASE, max_outputs=OUTPUT_MAX, allowed_phases='v')
+data_generator = DataGenerator(filename=FILENAME, inputs=NN_INPUTS, all_inputs=NN_ALL_INPUTS, outputs=NN_OUTPUTS,
+                               db=DATABASE, max_outputs=OUTPUT_MAX, allowed_phases='v')
 data_generator.handle_reaktoro(gas_phase=GAS_PHASE, gas_model=GAS_MODEL,
                                aqueous_phase=AQUEOUS_PHASE, aqueous_model=AQUEOUS_MODEL)
 data_generator.generate_inputs(input_ranges=INPUT_RANGES, n_datapoints=N_DATAPOINTS)

@@ -1,7 +1,7 @@
 from data_generation_functions import *
 
 # Create file name
-FILENAME = f'VLE_H_dataset'
+FILENAME = f'VLE_H_dataset_2'
 
 # Select NN inputs, T[K], P[bar], Species[mol/mol],
 # H2O will be calculated as 1-z_i

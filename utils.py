@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MaxAbsScaler
+from sklearn.preprocessing import *
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch.utils import data
 from models import NN, NNOPT, ECNN
 from constants import *
+from transform_utils import *
 import joblib
 
 device = DEVICE
@@ -26,6 +27,9 @@ def LoadData(args):
     elif args.dataset_type == 'flash':
         dataset_arr, scaler = load_data(args.dataset_path)
         Data_class = DataFlash
+    elif args.dataset_type == 'flash_wo_electrolytes':
+        dataset_arr, scaler = load_data(args.dataset_path)
+        Data_class = DataFlashWoElec
     else:
         raise ValueError('Dataset not supported!')
 
@@ -52,8 +56,11 @@ def LoadData(args):
         B_dep = B[:, :2]
         B_indep = B[:, 2:]
     elif args.dataset_type == 'flash':
-        B_dep = B[:, [0, 1, 2, 6, 10]]  # CO2(g), H2O(g), N2(g) HCO3-, Na+
-        B_indep = B[:, [3, 4, 5, 7, 8, 9, 11, 12]]
+        B_dep = B[:, :5]
+        B_indep = B[:, 5:]
+    elif args.dataset_type == 'flash_wo_electrolytes':
+        B_dep = B[:, :5]
+        B_indep = B[:, 5:]
     else:
         raise ValueError('Dataset not supported!')
 
@@ -121,9 +128,8 @@ def load_data(dataset_path):
     dataset = np.array(pd.read_csv(dataset_path).values)
     scaler = MaxAbsScaler()
     scaler.fit(dataset)
-    # Save to file
-    joblib.dump(scaler, r'C:\Users\caspe\PycharmProjects\KKThPINN_Optimization\models\flash\scalers\VLE_H_dataset')
     dataset = scaler.transform(dataset)
+    joblib.dump(scaler, r'C:\Users\caspe\PycharmProjects\KKThPINN_Optimization\models\flash\scalers\VLE_H_dataset')
     return dataset, scaler
 
 
@@ -276,14 +282,26 @@ class DataFlash(data.Dataset):
             [0, 0, 0, 0, 0, 0],  # Charge
         ], dtype=torch.float64)
 
+
+
         # outputs: ['CO2(g)', 'H2O(g)', 'N2(g)', 'CO2(aq)', 'H2O(aq)', 'N2(aq)', 'HCO3-', 'CO3-2', 'OH-', 'H+', 'Na+', 'NaOH(aq)', 'enthalpy']
+        # self.B = torch.tensor([
+        #     [-1, 0, 0, -1, 0, 0, -1, -1, 0, 0, 0, 0, 0],  # Carbon
+        #     [0, -2, 0, 0, -2, 0, -1, 0, -1, -1, 0, -1, 0],  # Hydrogen
+        #     [-2, -1, 0, -2, -1, 0, -3, -3, -1, 0, 0, -1, 0],  # Oxygen
+        #     # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0],  # Sodium
+        #     [0, 0, -2, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0],  # Nitrogen
+        #     [0, 0, 0, 0, 0, 0, -1, -2, -1, 1, 1, 0, 0],  # Charge
+        # ], dtype=torch.float64)
+
+        # divide into dependent and independent FOR DATASET REORDERED
+        # outputs: ['CO2(g)', 'H2O(g)', 'N2(g)', 'HCO3-', 'Na+' || 'CO2(aq)', 'H2O(aq)', 'N2(aq)', 'CO3-2', 'OH-', 'H+', 'NaOH(aq)', 'enthalpy']
         self.B = torch.tensor([
-            [-1, 0, 0, -1, 0, 0, -1, -1, 0, 0, 0, 0, 0],  # Carbon
-            [0, -2, 0, 0, -2, 0, -1, 0, -1, -1, 0, -1, 0],  # Hydrogen
-            [-2, -1, 0, -2, -1, 0, -3, -3, -1, 0, 0, -1, 0],  # Oxygen
-            # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0],  # Sodium
-            [0, 0, -2, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0],  # Nitrogen
-            [0, 0, 0, 0, 0, 0, -1, -2, -1, 1, 1, 0, 0],  # Charge
+            [-1, 0, 0, -1, 0, -1, 0, 0, -1, 0, 0, 0, 0],  # Carbon
+            [0, -2, 0, -1, 0, 0, -2, 0, 0, -1, -1, -1, 0],  # Hydrogen
+            [-2, -1, 0, -3, 0, -2, -1, 0, -3, -1, 0, -1, 0],  # Oxygen
+            [0, 0, -2, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0],  # Nitrogen
+            [0, 0, 0, -1, 1, 0, 0, 0, -2, -1, 1, 0, 0],  # Charge
         ], dtype=torch.float64)
 
         self.b = torch.tensor([0, 0, 0, 0, 0])
@@ -311,6 +329,107 @@ class DataFlash(data.Dataset):
     def resplit_data(self, val_ratio, test_ratio=0.2):
         self.train_set, self.val_set, self.test_set = self.split_data(val_ratio, test_ratio)
 
+
+class DataFlashWoElec(data.Dataset):
+    def __init__(self, dataset):
+        self.dataset_tensor = torch.from_numpy(dataset)
+        self.X = self.dataset_tensor[:, :7]
+        self.Y = self.dataset_tensor[:, 7:]
+        self.train_set, self.val_set, self.test_set = self.split_data(0.2)  # initial val_ratio -> 0.2
+
+        # inputs: ['T', 'P', 'C', 'H', 'O', 'Na', 'N']
+        self.A = torch.tensor([
+            [0, 0, 1, 0, 0, 0, 0],  # Carbon balance
+            [0, 0, 0, 1, 0, 0, 0],  # Hydrogen balance
+            [0, 0, 0, 0, 1, 0, 0],  # Oxygen balance
+            [0, 0, 0, 0, 0, 1, 0],  # Na
+            [0, 0, 0, 0, 0, 0, 1],  # Nitrogen balance
+        ], dtype=torch.float64)
+
+        # outputs: ['CO2_g_out', 'H2O_aq_out', 'O_elec', 'Na_elec', 'N2_g_out' ||,'CO2_aq_out', 'C_elec', 'H2O_g_out', 'H_elec', 'N2_aq_out', 'enthalpy_out']
+        self.B = torch.tensor([
+            [-1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0],  # Carbon
+            [0, -2, 0, 0, 0, 0, 0, -2, -1, 0, 0],  # Hydrogen
+            [-2, -1, -1, 0, 0, -2, 0, -1, 0, 0, 0],  # Oxygen
+            [0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0],  # Na
+            [0, 0, 0, 0, -2, 0, 0, 0, 0, -2, 0],  # Nitrogen
+        ], dtype=torch.float64)
+
+        self.b = torch.tensor([0, 0, 0, 0, 0])
+
+        self.constrained_indexes = list(set([index for index in torch.nonzero(self.B)[:, -1].tolist()]))
+        self.unconstrained_indexes = [item for item in range(self.B.shape[1]) if item not in self.constrained_indexes]
+
+    def __len__(self):
+        return len(self.dataset_tensor)
+
+    def __getitem__(self, idx):
+        return self.dataset_tensor[idx, :]
+
+    def split_data(self, val_ratio, test_ratio=0.2):
+        XY = data.TensorDataset(self.X, self.Y)
+        n_samples = len(XY)
+        n_val = int(val_ratio * n_samples)
+        n_test = int(test_ratio * n_samples)
+        n_train = n_samples - n_val - n_test
+        train_set = data.Subset(XY, range(0, n_train))
+        val_set = data.Subset(XY, range(n_train, n_train + n_val))
+        test_set = data.Subset(XY, range(n_train + n_val, n_samples))
+        return train_set, val_set, test_set
+
+    def resplit_data(self, val_ratio, test_ratio=0.2):
+        self.train_set, self.val_set, self.test_set = self.split_data(val_ratio, test_ratio)
+
+
+class DataFlashElements(data.Dataset):
+    def __init__(self, dataset):
+        self.dataset_tensor = torch.from_numpy(dataset)
+        self.X = self.dataset_tensor[:, :7]
+        self.Y = self.dataset_tensor[:, 7:]
+        self.train_set, self.val_set, self.test_set = self.split_data(0.2)  # initial val_ratio -> 0.2
+
+        # inputs: ['T', 'P', 'C', 'H', 'O', 'Na', 'N']
+        self.A = torch.tensor([
+            [0, 0, 1, 0, 0, 0, 0],  # Carbon balance
+            [0, 0, 0, 1, 0, 0, 0],  # Hydrogen balance
+            [0, 0, 0, 0, 1, 0, 0],  # Oxygen balance
+            [0, 0, 0, 0, 0, 1, 0],  # Na
+            [0, 0, 0, 0, 0, 0, 1],  # Nitrogen balance
+        ], dtype=torch.float64)
+
+        # outputs: ['CO2_g_out', 'H2O_aq_out', 'O_elec', 'Na_elec', 'N2_g_out' ||,'CO2_aq_out', 'C_elec', 'H2O_g_out', 'H_elec', 'N2_aq_out', 'enthalpy_out']
+        self.B = torch.tensor([
+            [-1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0],  # Carbon
+            [0, -2, 0, 0, 0, 0, 0, -2, -1, 0, 0],  # Hydrogen
+            [-2, -1, -1, 0, 0, -2, 0, -1, 0, 0, 0],  # Oxygen
+            [0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0],  # Na
+            [0, 0, 0, 0, -2, 0, 0, 0, 0, -2, 0],  # Nitrogen
+        ], dtype=torch.float64)
+
+        self.b = torch.tensor([0, 0, 0, 0, 0])
+
+        self.constrained_indexes = list(set([index for index in torch.nonzero(self.B)[:, -1].tolist()]))
+        self.unconstrained_indexes = [item for item in range(self.B.shape[1]) if item not in self.constrained_indexes]
+
+    def __len__(self):
+        return len(self.dataset_tensor)
+
+    def __getitem__(self, idx):
+        return self.dataset_tensor[idx, :]
+
+    def split_data(self, val_ratio, test_ratio=0.2):
+        XY = data.TensorDataset(self.X, self.Y)
+        n_samples = len(XY)
+        n_val = int(val_ratio * n_samples)
+        n_test = int(test_ratio * n_samples)
+        n_train = n_samples - n_val - n_test
+        train_set = data.Subset(XY, range(0, n_train))
+        val_set = data.Subset(XY, range(n_train, n_train + n_val))
+        test_set = data.Subset(XY, range(n_train + n_val, n_samples))
+        return train_set, val_set, test_set
+
+    def resplit_data(self, val_ratio, test_ratio=0.2):
+        self.train_set, self.val_set, self.test_set = self.split_data(val_ratio, test_ratio)
 
 class PINNLoss(nn.Module):
     def __init__(self, A, B, b, mu, reduction='mean'):

@@ -64,7 +64,8 @@ class NNOPT(nn.Module):
     def forward(self, x):
         x0 = x
         for layer in self.layers[:-1]:
-            x = F.relu(layer(x))
+            # x = F.relu(layer(x))
+            x = torch.tanh(layer(x))
         z0 = self.layers[-1](x)
         z = self.fc_fixed1(z0) + self.fc_fixed2(x0)
         return z
@@ -88,6 +89,8 @@ class ECNN(nn.Module):
         self.B_indep = B_indep.to(device)
         self.B_dep = B_dep.to(device)
         self.b = b.to(device)
+
+        # self.B_dep_inverse = torch.linalg.solve(self.B_dep, torch.eye(self.B_dep.shape[0]))
 
         self.B_dep_inverse = torch.inverse(self.B_dep)
         self.Astar = - torch.mm(self.B_dep_inverse, self.A)

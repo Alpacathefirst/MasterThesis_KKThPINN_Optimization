@@ -13,11 +13,11 @@ def add_arguments():
     parser.add_argument('--model', type=str, default='KKThPINN', help='NN, PINN, KKThPINN')
     parser.add_argument('--model_id', type=str)
     parser.add_argument('--input_dim', type=int, default=6,
-                        help='6 for Flash')
+                        help='6 for Flash, 7 for flash_wo_electrolytes')
     parser.add_argument('--hidden_dim', type=int, default=32)
     parser.add_argument('--hidden_num', type=int, default=2)
     parser.add_argument('--z0_dim', type=int, default=13,
-                        help='13 for Flash')
+                        help='13 for Flash, 11 for Flash_wo_electrolytes')
 
     parser.add_argument('--optimizer', type=str, default='adam')
     parser.add_argument('--epochs', type=int, default=1000)
@@ -30,7 +30,7 @@ def add_arguments():
     parser.add_argument("--mu_safe", default=1e+9, type=float)
     parser.add_argument("--dtype", default=64, type=int)
 
-    parser.add_argument('--dataset_type', type=str, help='choose from cstr, plant, distillation, flash')
+    parser.add_argument('--dataset_type', type=str, help='choose from cstr, plant, distillation, flash, flash_wo_electrolytes')
     parser.add_argument('--dataset_path', type=str)
     parser.add_argument('--val_ratio', type=float, default=0.2)
     parser.add_argument('--job', type=str, help='choose from train, experiment')
@@ -102,13 +102,18 @@ if __name__ == '__main__':
     # Run directly without command line
     sys.argv = [
         sys.argv[0],
-        '--model_id', 'MODELID',
+        '--model_id', 'test',
         '--model', 'KKThPINN',
-        '--dataset_type', 'flash',
-        '--dataset_path', 'data_generation\data_files\VLE_H_dataset',
+        '--dataset_type', 'flash_wo_electrolytes',
+        '--dataset_path', 'data_generation\data_files\VLE_H_dataset_transformed',
         '--job', 'train',   # use experiment to run all models for a comparative evaluation, use train to train a specific model
-        '--epochs', '2000',
-        '--runs', '1'
+        '--epochs', '500',
+        '--runs', '3',
+        '--hidden_dim', '20',
+        '--hidden_num', '2',
+        '--batch_size', '32',
+        '--input_dim', '7',
+        '--z0_dim', '11'
     ]
     args = add_arguments()
     print(args)

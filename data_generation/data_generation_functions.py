@@ -129,25 +129,30 @@ class DataGenerator:
             n_liquid += self.state.speciesAmount(specie)
         n_total = n_vapor + n_liquid
         out = []
-        for entry in self.output_names:
-            if entry in SPECIES:
-                try:
-                    specie_molfraction = props.speciesMoleFraction(entry)
-                    specie_amount = self.state.speciesAmount(entry)
-                    # specie amount has to be smaller then 1e-15, otherwise a calculation with a disapearing phase will
-                    # be discarded because it will have really high molfraction
-                    if entry in self.max_outputs:
-                        if specie_molfraction > self.max_outputs[entry]: # and specie_amount > 1e-15
-                            # print(self.state)
-                            # print(f'specie {specie}, molfrac = {specie_molfraction}, max is {self.max_outputs[specie]}')
-                            return False
-                    out.append(specie_amount)
-                except RuntimeError:
-                    out.append(0)
-            elif entry == 'enthalpy':
-                props = rkt.ChemicalProps(self.state)
-                enthalpy = props.enthalpy() / n_total  # to obtain enthalpy in J/mol
-                out.append(enthalpy)
+        if self.allowed_phases == 'v':
+            inp, out = self.save_sat_vapor(inp, out, n_vapor)
+        elif self.allowed_phases == 'l':
+            inp, out = self.save_sat_liquid(inp, out, n_liquid)
+        else:
+            for entry in self.output_names:
+                if entry in SPECIES:
+                    try:
+                        specie_molfraction = props.speciesMoleFraction(entry)
+                        specie_amount = self.state.speciesAmount(entry)
+                        # specie amount has to be smaller then 1e-15, otherwise a calculation with a disapearing phase will
+                        # be discarded because it will have really high molfraction
+                        if entry in self.max_outputs:
+                            if specie_molfraction > self.max_outputs[entry]: # and specie_amount > 1e-15
+                                # print(self.state)
+                                # print(f'specie {specie}, molfrac = {specie_molfraction}, max is {self.max_outputs[specie]}')
+                                return False
+                        out.append(specie_amount)
+                    except RuntimeError:
+                        out.append(0)
+                elif entry == 'enthalpy':
+                    props = rkt.ChemicalProps(self.state)
+                    enthalpy = props.enthalpy() / n_total  # to obtain enthalpy in J/mol
+                    out.append(enthalpy)
         self.input_data.append(inp)
         self.output_data.append(out)
         return True
@@ -155,6 +160,7 @@ class DataGenerator:
     def save_sat_vapor(self, inp, out, n_vap):
         props = rkt.ChemicalProps(self.state)
         for index, name in enumerate(self.output_names):
+            out.append(0)
             if name in self.gas_phase_species:
                 out[index] = props.speciesMoleFraction(name) * self.molar_amount
             elif name in self.aqueous_phase_species:
@@ -162,9 +168,11 @@ class DataGenerator:
             elif name == 'enthalpy':
                 enthalpy = props.phaseProps("GaseousPhase").enthalpy()
                 out[index] = enthalpy / n_vap  # get the enthalpy in J/mol
-        for index, name in enumerate(self.input_names):
+        for index, name in enumerate(self.all_input_names):
             if name in self.gas_phase_species:
                 inp[index] = props.speciesMoleFraction(name) * self.molar_amount  # the inpuit and output are equal in the case of a vapor phase only
+            elif name == 'H2O(aq)':
+                inp[index] = props.speciesMoleFraction('H2O(g)') * self.molar_amount
             elif name in self.aqueous_phase_species:
                 inp[index] = 0  # set liquid molfractions in the input to zero
         return inp, out
@@ -172,6 +180,7 @@ class DataGenerator:
     def save_sat_liquid(self, inp, out, n_liq):
         props = rkt.ChemicalProps(self.state)
         for index, name in enumerate(self.output_names):
+            out.append(0)
             if name in self.gas_phase_species:
                 out[index] = 0  # set vapor molfractions to zero
             elif name in self.aqueous_phase_species:
@@ -180,7 +189,7 @@ class DataGenerator:
                 enthalpy = props.phaseProps('AqueousPhase').enthalpy() / n_liq  # get the enthalpy in J/mol
                 out[index] = enthalpy
 
-        for index, name in enumerate(self.input_names):
+        for index, name in enumerate(self.all_input_names):
             if name == 'CO2(g)':
                 inp[index] = self.add_specie_amounts(['CO2(aq)', 'HCO3-', 'CO3-2'])
             elif name == 'N2(g)':
